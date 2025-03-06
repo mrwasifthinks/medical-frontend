@@ -1,34 +1,125 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { 
+  Container, 
+  Paper, 
+  Typography, 
+  TextField, 
+  Button, 
+  Box,
+  List,
+  ListItem,
+  ListItemText,
+  CircularProgress,
+  Alert
+} from '@mui/material'
+import { ThemeProvider, createTheme } from '@mui/material/styles'
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+  },
+})
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [symptoms, setSymptoms] = useState<string>('')
+  const [result, setResult] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const symptomsList = symptoms.split(',').map(s => s.trim())
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/predict`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ symptoms: symptomsList }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get prediction')
+      }
+
+      const data = await response.json()
+      setResult(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <ThemeProvider theme={theme}>
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Paper elevation={3} sx={{ p: 4 }}>
+          <Typography variant="h4" component="h1" gutterBottom align="center" color="primary">
+            AI Medical Diagnosis System
+          </Typography>
+          
+          <Typography variant="body1" gutterBottom sx={{ mb: 3 }}>
+            Enter your symptoms below, separated by commas (e.g., fever, headache, cough)
+          </Typography>
+
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            variant="outlined"
+            label="Symptoms"
+            value={symptoms}
+            onChange={(e) => setSymptoms(e.target.value)}
+            sx={{ mb: 3 }}
+          />
+
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSubmit}
+              disabled={loading || !symptoms.trim()}
+              size="large"
+            >
+              {loading ? <CircularProgress size={24} color="inherit" /> : 'Get Diagnosis'}
+            </Button>
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
+
+          {result && (
+            <Box sx={{ mt: 4 }}>
+              <Typography variant="h6" gutterBottom color="primary">
+                Diagnosis Results:
+              </Typography>
+              
+              <List>
+                {result.top_3_predictions.map((pred: any, index: number) => (
+                  <ListItem key={index}>
+                    <ListItemText
+                      primary={`${index + 1}. ${pred.disease}`}
+                      secondary={`Probability: ${(pred.probability * 100).toFixed(2)}%`}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          )}
+        </Paper>
+      </Container>
+    </ThemeProvider>
   )
 }
 

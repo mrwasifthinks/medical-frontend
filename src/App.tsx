@@ -35,8 +35,11 @@ function App() {
     try {
       setLoading(true)
       setError(null)
-      const symptomsList = symptoms.split(',').map(s => s.trim())
+      const symptomsList = symptoms.split(',').map(s => s.trim().toLowerCase())
       
+      console.log('Sending symptoms:', symptomsList)
+      console.log('API URL:', import.meta.env.VITE_API_URL)
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/predict`, {
         method: 'POST',
         headers: {
@@ -45,16 +48,31 @@ function App() {
         body: JSON.stringify({ symptoms: symptomsList }),
       })
 
+      console.log('Response status:', response.status)
+      
       if (!response.ok) {
-        throw new Error('Failed to get prediction')
+        const errorText = await response.text()
+        console.error('API Error:', errorText)
+        throw new Error(`Failed to get prediction: ${errorText}`)
       }
 
       const data = await response.json()
+      console.log('API Response:', data)
       setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      console.error('Error details:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred while connecting to the server')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      if (symptoms.trim() && !loading) {
+        handleSubmit()
+      }
     }
   }
 
@@ -78,7 +96,9 @@ function App() {
             label="Symptoms"
             value={symptoms}
             onChange={(e) => setSymptoms(e.target.value)}
+            onKeyPress={handleKeyPress}
             sx={{ mb: 3 }}
+            placeholder="Type your symptoms here..."
           />
 
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>

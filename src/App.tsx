@@ -37,10 +37,19 @@ function App() {
       setError(null)
       const symptomsList = symptoms.split(',').map(s => s.trim().toLowerCase())
       
-      console.log('Sending symptoms:', symptomsList)
-      console.log('API URL:', import.meta.env.VITE_API_URL)
+      // Get the API URL and ensure it doesn't end with a slash
+      const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '')
+      console.log('Base API URL:', apiUrl)
+      
+      if (!apiUrl) {
+        throw new Error('API URL is not configured')
+      }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/predict`, {
+      const predictUrl = `${apiUrl}/predict`
+      console.log('Making request to:', predictUrl)
+      console.log('Sending symptoms:', symptomsList)
+
+      const response = await fetch(predictUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -53,11 +62,16 @@ function App() {
       if (!response.ok) {
         const errorText = await response.text()
         console.error('API Error:', errorText)
-        throw new Error(`Failed to get prediction: ${errorText}`)
+        throw new Error(`Server error: ${response.status}`)
       }
 
       const data = await response.json()
       console.log('API Response:', data)
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
       setResult(data)
     } catch (err) {
       console.error('Error details:', err)
@@ -135,6 +149,12 @@ function App() {
                   </ListItem>
                 ))}
               </List>
+
+              {result.invalid_symptoms && result.invalid_symptoms.length > 0 && (
+                <Alert severity="warning" sx={{ mt: 2 }}>
+                  Some symptoms were not recognized: {result.invalid_symptoms.join(', ')}
+                </Alert>
+              )}
             </Box>
           )}
         </Paper>
